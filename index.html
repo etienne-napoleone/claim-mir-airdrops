@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale = 1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>claim-mir-airdrops</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    .afk {
+      display: none;
+    }
+  </style>
+</head>
+
+<body style="font-family: 'JetBrains Mono', monospace;" data-controller="main">
+
+  <h1>claim-mir-airdrops</h1>
+
+  <p>
+    claim MIR airdrops directly from Terra Station desktop
+  </p>
+
+  <h2>step 1: find unclaimed MIR airdrops</h2>
+
+  <p>
+    input the terra address to perform a search<sup>(<a href="#ref1">1</a>)</sup>
+  </p>
+
+  <div>
+    <input data-main-target="accountAddress" placeholder="terra1..." type="text">
+    <button data-action="click->main#search">search</button>
+  </div>
+
+  <div data-main-target="nextSteps" class="afk">
+    <h2>step 2: find the smart contract</h2>
+
+    <p>
+      on Terra Station, click on "Contracts" in the left panel and copy/paste the MIR airdrop contract
+      address<sup>(<a href="#ref2">2</a>)</sup>
+      in the search bar:
+    </p>
+
+    <p>
+      <button data-action="click->main#copyContractAddress">copy</button>
+      <span data-main-target="contractAddress">terra1kalp2knjm4cs3f59ukr4hdhuuncp648eqrgshw</span>
+    </p>
+
+    <p>
+      then hit &lt;enter&gt;
+    </p>
+
+    <h2>step 3: claim airdrops</h2>
+
+    <p>
+      click on the "interact" button and copy/paste the following block in "HandleMessage json"
+    </p>
+
+    <p>
+      <button data-action="click->main#copyJson">copy</button>
+    <pre data-main-target="handleMessageJson"></pre>
+    </p>
+
+    <p>
+      you do not need to put any "coins", just validate with "Next" and leave the rest by default
+    </p>
+
+    <h2>step 4: back to step 1</h2>
+
+    <p>
+      you should have rececived your extra MIRs by now
+    </p>
+
+    <p>
+      click on the "search" button again to see if there's additional airdrops waiting for you
+    </p>
+  </div>
+
+  <div data-main-target="noStep" class="afk">
+    <h2>step 2: there's no step 2</h2>
+
+    <p>
+      search<sup>(<a href="#ref2">2</a>)</sup> gave no result, airdrops already claimed or malformated address
+    </p>
+  </div>
+
+  <footer>
+    <br>
+    ---
+    <h3>refs</h3>
+
+    <p id="ref1">
+      <sup>1</sup>
+      <a href="https://graph.mirror.finance/graphql">graph.mirror.finance/graphql</a>
+      see "airdrop" query in the documentation
+    </p>
+
+    <p id="ref2">
+      <sup>2</sup> <a href="https://docs.mirror.finance/networks#core-contracts">docs.mirror.finance/networks</a>
+    </p>
+
+    <br>
+    ---
+    <h5>tg: @etienne_n</h5>
+  </footer>
+
+  <script src="https://unpkg.com/stimulus/dist/stimulus.umd.js"></script>
+  <script>
+    (() => {
+      const application = Stimulus.Application.start()
+
+      application.register("main", class extends Stimulus.Controller {
+        static get targets() {
+          return ["accountAddress", "contractAddress", "nextSteps", "noStep", "handleMessageJson"]
+        }
+
+        async search() {
+          try {
+            const res = await fetch('https://graph.mirror.finance/graphql', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body: JSON.stringify({ query: `query{airdrop(address:"${this.accountAddressTarget.value}",network:"TERRA")}` })
+            })
+            const res_json = await res.json()
+            const airdrops = res_json.data.airdrop
+            if (airdrops.length > 0) {
+              const airdrop = airdrops.pop()
+              const claim = {
+                "claim": {
+                  "amount": airdrop.amount,
+                  "stage": airdrop.stage,
+                  "proof": JSON.parse(airdrop.proof)
+                }
+              }
+              this.handleMessageJsonTarget.innerHTML = JSON.stringify(claim, "<br>", 4)
+              this.nextStepsTarget.classList.remove('afk')
+              this.noStepTarget.classList.add('afk')
+            } else {
+              this.handleMessageJsonTarget.innerHTML = JSON.stringify("")
+              this.nextStepsTarget.classList.add('afk')
+              this.noStepTarget.classList.remove('afk')
+            }
+          } catch (e) {
+            console.error(e)
+            this.handleMessageJsonTarget.innerHTML = JSON.stringify("")
+            this.nextStepsTarget.classList.add('afk')
+            this.noStepTarget.classList.add('afk')
+          }
+        }
+
+        copyContractAddress() {
+          navigator.clipboard.writeText(this.contractAddressTarget.innerHTML)
+        }
+
+        copyJson() {
+          navigator.clipboard.writeText(this.handleMessageJsonTarget.innerHTML)
+        }
+
+      })
+    })()
+  </script>
+</body>
+
+</html>
